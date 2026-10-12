@@ -59,7 +59,7 @@
         <div class="text-lg font-black text-pink-400 mb-1">狙いを定めてドロップ！</div>
         <div class="text-xs text-slate-300 leading-relaxed max-w-[280px]">
           持ち球は<span class="text-cyan-300 font-bold">10発</span>！<br>
-          下の中央<span class="text-amber-300 font-bold">【JACKPOT (x300)】</span>を狙って目標スコア突破＆ステージクリアを目指せ！
+          下の中央<span class="text-amber-300 font-bold">【JACKPOT (+1球)】</span>に入れると弾が回復！狙い撃ちでストックを増やせ！
         </div>
       </div>
 
@@ -72,7 +72,7 @@
       <div id="stageClearBanner" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 scale-0 transition-transform duration-300 z-30 pointer-events-none">
         <div class="text-5xl mb-2">🎉🏆👑</div>
         <div class="text-3xl font-black text-amber-300 tracking-wider mb-1">STAGE CLEAR!!</div>
-        <div class="text-sm text-purple-300 font-bold mb-1">持ち球 +3 ボーナス獲得！</div>
+        <div class="text-sm text-purple-300 font-bold mb-1">持ち球 +5 ボーナス獲得！</div>
         <div class="text-xs text-slate-400 animate-pulse mt-2">次のステージへ突入中...</div>
       </div>
 
@@ -357,7 +357,7 @@
     let screenShake = 0;
     let isGameOver = false;
     let isStageClearing = false;
-    const MAX_BALLS = 15; // 持ち球の絶対上限（15発以上は持てない）
+    const MAX_BALLS = 30; // 持ち球の上限（最大30発までストック可能）
 
     let upgGate = { level: 1, maxHits: 3, cost: 800 };
     let upgBallMax = { level: 1, bonus: 0, cost: 1500 };
@@ -449,16 +449,17 @@
       }
 
       const maxHits = upgGate.maxHits;
-      // ゲートは画面中央の1箇所のみ（コンパクトなx2ゲート）
-      gates.push({ x: w * 0.50, y: h * 0.45, w: 38, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#ec4899', label: 'x2' });
+      // ゲートは左右の2箇所（x2倍率）
+      gates.push({ x: w * 0.32, y: h * 0.44, w: 42, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#ec4899', label: 'x2' });
+      gates.push({ x: w * 0.68, y: h * 0.44, w: 42, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#ec4899', label: 'x2' });
 
-      // ポケット設計：球の回復は完全撤廃！純粋なスコア倍率勝負（中央がJACKPOT x300）
+      // ポケット設計：中央のJACKPOTに入ると「+1球」回復！
       const pocketCount = 5;
       const pocketWidth = w / pocketCount;
       const pocketConfigs = [
         { mult: 10, balls: 0, color: '#64748b', label: 'x10' },
         { mult: 30, balls: 0, color: '#3b82f6', label: 'x30' },
-        { mult: 300, balls: 0, color: '#f59e0b', label: 'JACKPOT x300', isJackpot: true },
+        { mult: 200, balls: 1, color: '#f59e0b', label: 'JACKPOT (+1球)', isJackpot: true },
         { mult: 30, balls: 0, color: '#3b82f6', label: 'x30' },
         { mult: 10, balls: 0, color: '#64748b', label: 'x10' },
       ];
@@ -564,8 +565,8 @@
       if (score >= targetScore && !isGameOver && !isStageClearing) {
         isStageClearing = true;
         playJackpotSound();
-        remainingBalls = Math.min(remainingBalls + 3, MAX_BALLS); // 最大でもMAX_BALLS(15発)まで！
-        addFloatingText('STAGE CLEAR!! +3 BALLS', canvas.getBoundingClientRect().width / 2, 200, '#facc15', 22);
+        remainingBalls = Math.min(remainingBalls + 5, MAX_BALLS); // クリアで+5発獲得（上限MAX_BALLSまで）
+        addFloatingText('STAGE CLEAR!! +5 BALLS', canvas.getBoundingClientRect().width / 2, 200, '#facc15', 22);
         stageClearBanner.style.transform = 'scale(1)';
 
         setTimeout(() => {
@@ -760,7 +761,7 @@
 
               // ボーナス玉（フィーバー中の玉）は持ち球を増やさない（純粋なスコア稼ぎ）
               if (pkt.balls > 0 && !b.isBonus) {
-                remainingBalls += pkt.balls;
+                remainingBalls = Math.min(remainingBalls + pkt.balls, MAX_BALLS);
                 addFloatingText(`+${pkt.balls} BALL!`, pkt.x + pkt.w/2, pkt.y - 30, '#34d399', 16);
               }
 

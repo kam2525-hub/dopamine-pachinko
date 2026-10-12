@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOPAMINE PACHINKO - 弾数インフレ極限パチンコ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes pulse-glow {
+      0%, 100% { filter: drop-shadow(0 0 10px rgba(236, 72, 153, 0.9)); }
+      50% { filter: drop-shadow(0 0 24px rgba(168, 85, 247, 1)); }
+    }
+    .fever-active { animation: pulse-glow 0.6s infinite; }
+    .heartbeat { animation: heart 1s infinite; }
+    @keyframes heart {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center justify-center p-2 font-sans select-none overflow-x-hidden">
+
+  <!-- メインコンテナ -->
+  <div class="relative w-full max-w-[440px] bg-slate-900 border-2 border-purple-500/50 rounded-2xl shadow-[0_0_60px_rgba(168,85,247,0.35)] flex flex-col overflow-hidden">
+    
+    <!-- ヘッダー / 残り持ち球 & スコア & コンボ -->
+    <div class="p-3 bg-slate-950/90 backdrop-blur border-b border-purple-500/30 flex items-center justify-between z-10">
+      <div>
+        <div class="flex items-center gap-1.5">
+          <span id="stageBadge" class="px-1.5 py-0.5 bg-purple-900/80 border border-purple-400 text-purple-200 text-[10px] font-black rounded">STAGE 1</span>
+          <span class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Goal: <span id="targetScoreDisplay" class="text-amber-300 font-mono">8,000</span></span>
+        </div>
+        <div id="scoreDisplay" class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-pink-400 to-purple-400 font-mono">0</div>
+      </div>
+      
+      <!-- 持ち球カウンター（残弾0でゲームオーバー） -->
+      <div class="text-right">
+        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">REMAINING BALLS</div>
+        <div id="remainingBallsBox" class="flex items-center justify-end gap-1">
+          <span class="text-lg">⚪</span>
+          <span id="remainingBallsDisplay" class="text-2xl font-black text-cyan-300 font-mono">15</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- コンボインジケーター & フィーバーバー -->
+    <div class="relative w-full bg-slate-800 h-3 border-b border-purple-900/40">
+      <div id="feverBar" class="h-full bg-gradient-to-r from-cyan-500 via-pink-500 to-amber-400 w-0 transition-all duration-75"></div>
+      <div id="feverText" class="absolute inset-0 flex items-center justify-center text-[9px] font-black tracking-widest text-white/90 drop-shadow">FEVER GAUGE</div>
+    </div>
+
+    <!-- ゲーム画面 Canvas -->
+    <div class="relative w-full aspect-[9/14] bg-gradient-to-b from-slate-950 via-purple-950/20 to-slate-950 cursor-crosshair">
+      <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+
+      <!-- 発射ガイドUI -->
+      <div id="startOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/85 p-6 text-center transition-opacity duration-300 pointer-events-none z-20">
+        <div class="text-4xl mb-2">🎯⚪💥</div>
+        <div class="text-lg font-black text-pink-400 mb-1">狙いを定めてドロップ！</div>
+        <div class="text-xs text-slate-300 leading-relaxed max-w-[280px]">
+          持ち球は<span class="text-cyan-300 font-bold">15発</span>！<br>
+          下の中央<span class="text-amber-300 font-bold">【JACKPOT (+3球)】</span>や<span class="text-emerald-300 font-bold">【+1球】</span>ポケットに入れて弾を補充しながら高得点を目指せ！
+        </div>
+      </div>
+
+      <!-- フィーバーバナー -->
+      <div id="feverBanner" class="absolute top-1/4 left-0 right-0 text-center font-black text-3xl text-amber-300 italic tracking-wider drop-shadow-[0_0_25px_rgba(251,191,36,1)] scale-0 transition-transform duration-200 pointer-events-none z-20">
+        🔥 ULTRA FEVER!! 🔥
+      </div>
+
+      <!-- ステージクリアバナー -->
+      <div id="stageClearBanner" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 scale-0 transition-transform duration-300 z-30 pointer-events-none">
+        <div class="text-5xl mb-2">🎉🏆👑</div>
+        <div class="text-3xl font-black text-amber-300 tracking-wider mb-1">STAGE CLEAR!!</div>
+        <div class="text-sm text-purple-300 font-bold mb-1">持ち球 +10 ボーナス獲得！</div>
+        <div class="text-xs text-slate-400 animate-pulse mt-2">次のステージへ突入中...</div>
+      </div>
+
+      <!-- ゲームオーバー画面 -->
+      <div id="gameOverModal" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/95 scale-0 transition-transform duration-300 z-30 p-6 text-center">
+        <div class="text-5xl mb-2">💀</div>
+        <div class="text-2xl font-black text-rose-500 tracking-wider mb-1">GAME OVER</div>
+        <div class="text-xs text-slate-400 mb-3">持ち球がなくなりました</div>
+        
+        <div class="bg-slate-900 border border-purple-500/30 rounded-xl p-3 w-full max-w-[240px] mb-4">
+          <div class="text-[10px] text-purple-300">FINAL SCORE</div>
+          <div id="finalScoreDisplay" class="text-2xl font-black text-amber-300 font-mono">0</div>
+          <div class="text-[10px] text-slate-400 mt-1">到達: <span id="finalStageDisplay" class="text-white font-bold">STAGE 1</span></div>
+        </div>
+
+        <button id="retryBtn" class="w-full max-w-[200px] py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 active:scale-95 text-white font-black rounded-xl shadow-lg shadow-pink-600/30 text-sm tracking-wider">
+          🔄 もう一度挑戦！
+        </button>
+      </div>
+    </div>
+
+    <!-- アクションコントロールバー -->
+    <div class="p-2.5 bg-slate-950 border-t border-purple-500/30 flex items-center gap-2 z-10">
+      <button id="dropBtn" class="flex-1 py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 active:scale-95 text-white font-black rounded-xl shadow-lg shadow-pink-600/30 transition-all text-xs tracking-wider flex items-center justify-center gap-1">
+        <span>🚀 発射する (残: <span id="dropBtnCount">15</span>)</span>
+      </button>
+
+      <button id="autoBtn" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-cyan-300 font-bold rounded-xl border border-cyan-500/30 text-xs transition-all">
+        オート: OFF
+      </button>
+    </div>
+
+    <!-- アップグレード・ショップ -->
+    <div class="bg-slate-900/95 border-t border-purple-500/30 p-2 flex flex-col gap-1 z-10">
+      <div class="flex items-center justify-between px-1">
+        <span class="text-[10px] font-black text-purple-400 uppercase tracking-wider">⚡ UPGRADES</span>
+        <span class="text-[9px] text-slate-400">スコアを消費して永久強化</span>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1.5">
+        <!-- アップグレード1: 分裂ゲート耐久UP -->
+        <button id="upgGateBtn" class="p-1.5 bg-slate-800 hover:bg-slate-750 active:scale-95 rounded-lg border border-pink-500/30 flex flex-col items-center justify-center text-left group">
+          <div class="text-[10px] font-bold text-pink-300">ゲート耐久UP</div>
+          <div id="upgGateLv" class="text-[9px] text-slate-400">Lv.1 (3回)</div>
+          <div id="upgGateCost" class="text-[9px] font-mono text-amber-300 font-bold mt-0.5">800 pts</div>
+        </button>
+
+        <!-- アップグレード2: 持ち球上限UP -->
+        <button id="upgBallMaxBtn" class="p-1.5 bg-slate-800 hover:bg-slate-750 active:scale-95 rounded-lg border border-cyan-500/30 flex flex-col items-center justify-center text-left group">
+          <div class="text-[10px] font-bold text-cyan-300">初期球数UP</div>
+          <div id="upgBallMaxLv" class="text-[9px] text-slate-400">Lv.1 (+0球)</div>
+          <div id="upgBallMaxCost" class="text-[9px] font-mono text-amber-300 font-bold mt-0.5">1,500 pts</div>
+        </button>
+
+        <!-- アップグレード3: JPマグネット -->
+        <button id="upgMagnetBtn" class="p-1.5 bg-slate-800 hover:bg-slate-750 active:scale-95 rounded-lg border border-amber-500/30 flex flex-col items-center justify-center text-left group">
+          <div class="text-[10px] font-bold text-amber-300">JP磁力吸引</div>
+          <div id="upgMagnetLv" class="text-[9px] text-slate-400">Lv.0 (未解放)</div>
+          <div id="upgMagnetCost" class="text-[9px] font-mono text-amber-300 font-bold mt-0.5">3,000 pts</div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- 超高音質・多彩な Web Audio API シンセサウンド ---
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // 音階（和音・メロディ生成用）
+    const SCALE_PENTATONIC = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51];
+    let noteCounter = 0;
+
+    // 1. ピン接触音（心地よいマリンバ・ベル風）
+    function playPinHitSound(isBomb = false, isLaser = false) {
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        if (isBomb) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(160, now);
+          osc.frequency.exponentialRampToValueAtTime(30, now + 0.35);
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } else if (isLaser) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(900, now);
+          osc.frequency.exponentialRampToValueAtTime(150, now + 0.2);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        } else {
+          noteCounter = (noteCounter + 1) % SCALE_PENTATONIC.length;
+          const freq = SCALE_PENTATONIC[noteCounter];
+          
+          const osc1 = audioCtx.createOscillator();
+          const osc2 = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(freq, now);
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(freq * 2, now);
+
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + 0.09);
+          osc2.stop(now + 0.09);
+        }
+      } catch (e) {}
+    }
+
+    // 2. ゲート通過・分裂音（キラキラ上昇アルペジオ）
+    function playGatePassSound() {
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const notes = [659.25, 783.99, 1046.50, 1318.51];
+        notes.forEach((freq, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.025);
+          gain.gain.setValueAtTime(0.08, now + idx * 0.025);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.025 + 0.1);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + idx * 0.025);
+          osc.stop(now + idx * 0.025 + 0.1);
+        });
+      } catch (e) {}
+    }
+
+    // 3. ゲート破損音（パリィン！）
+    function playGateBreakSound() {
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1400, now);
+        osc.frequency.exponentialRampToValueAtTime(400, now + 0.12);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } catch (e) {}
+    }
+
+    // 4. コイン・ポケット突入音（チャリン！）
+    function playCoinPocketSound(ballReward = 0) {
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        [987.77, 1318.51].forEach((f, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, now + i * 0.04);
+          gain.gain.setValueAtTime(0.1, now + i * 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.04 + 0.15);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + i * 0.04);
+          osc.stop(now + i * 0.04 + 0.15);
+        });
+
+        if (ballReward > 0) {
+          const osc2 = audioCtx.createOscillator();
+          const gain2 = audioCtx.createGain();
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(523.25, now + 0.08);
+          osc2.frequency.exponentialRampToValueAtTime(1046.50, now + 0.2);
+          gain2.gain.setValueAtTime(0.12, now + 0.08);
+          gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          osc2.connect(gain2);
+          gain2.connect(audioCtx.destination);
+          osc2.start(now + 0.08);
+          osc2.stop(now + 0.22);
+        }
+      } catch (e) {}
+    }
+
+    // 5. JACKPOT 超大当りファンファーレ
+    function playJackpotSound() {
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const chord = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+        chord.forEach((freq, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+          gain.gain.setValueAtTime(0.15, now + idx * 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.4);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + idx * 0.04);
+          osc.stop(now + idx * 0.04 + 0.4);
+        });
+      } catch (e) {}
+    }
+
+    // 6. ピンチ警告音（ドクン...ドクン...）
+    function playWarningSound() {
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(80, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.15);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      } catch (e) {}
+    }
+
+    // 7. ゲームオーバー音
+    function playGameOverSound() {
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const downNotes = [440, 392, 349.23, 261.63];
+        downNotes.forEach((f, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(f, now + idx * 0.12);
+          gain.gain.setValueAtTime(0.15, now + idx * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.3);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + idx * 0.12);
+          osc.stop(now + idx * 0.12 + 0.3);
+        });
+      } catch (e) {}
+    }
+
+    // --- ゲームステート管理 ---
+    let currentStage = 1;
+    let targetScore = 8000;
+    let score = 0;
+    let remainingBalls = 15;
+    let fever = 0;
+    let isFever = false;
+    let autoFire = false;
+    let lastAutoFire = 0;
+    let screenShake = 0;
+    let isGameOver = false;
+
+    let upgGate = { level: 1, maxHits: 3, cost: 800 };
+    let upgBallMax = { level: 1, bonus: 0, cost: 1500 };
+    let upgMagnet = { level: 0, power: 0, cost: 3000 };
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const remainingBallsDisplay = document.getElementById('remainingBallsDisplay');
+    const dropBtnCount = document.getElementById('dropBtnCount');
+    const stageBadge = document.getElementById('stageBadge');
+    const targetScoreDisplay = document.getElementById('targetScoreDisplay');
+    const feverBar = document.getElementById('feverBar');
+    const feverBanner = document.getElementById('feverBanner');
+    const stageClearBanner = document.getElementById('stageClearBanner');
+    const gameOverModal = document.getElementById('gameOverModal');
+    const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+    const finalStageDisplay = document.getElementById('finalStageDisplay');
+    const startOverlay = document.getElementById('startOverlay');
+    const autoBtn = document.getElementById('autoBtn');
+    const dropBtn = document.getElementById('dropBtn');
+    const retryBtn = document.getElementById('retryBtn');
+
+    const upgGateBtn = document.getElementById('upgGateBtn');
+    const upgGateLv = document.getElementById('upgGateLv');
+    const upgGateCost = document.getElementById('upgGateCost');
+
+    const upgBallMaxBtn = document.getElementById('upgBallMaxBtn');
+    const upgBallMaxLv = document.getElementById('upgBallMaxLv');
+    const upgBallMaxCost = document.getElementById('upgBallMaxCost');
+
+    const upgMagnetBtn = document.getElementById('upgMagnetBtn');
+    const upgMagnetLv = document.getElementById('upgMagnetLv');
+    const upgMagnetCost = document.getElementById('upgMagnetCost');
+
+    let balls = [];
+    let pins = [];
+    let gates = [];
+    let pockets = [];
+    let particles = [];
+    let floatingTexts = [];
+
+    let aimX = 200;
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      width = canvas.width;
+      height = canvas.height;
+      ctx.scale(dpr, dpr);
+      aimX = rect.width / 2;
+      initStage(currentStage);
+    }
+
+    function initStage(stageNum) {
+      const w = canvas.getBoundingClientRect().width;
+      const h = canvas.getBoundingClientRect().height;
+
+      pins = [];
+      gates = [];
+      pockets = [];
+
+      const rows = 8 + Math.min(stageNum, 3);
+      const startY = h * 0.16;
+      const rowGap = (h * 0.58) / rows;
+
+      for (let r = 0; r < rows; r++) {
+        const isOdd = r % 2 === 1;
+        const cols = isOdd ? 7 : 8;
+        const colGap = w / (cols + 1);
+
+        for (let c = 0; c < cols; c++) {
+          const x = (c + 1) * colGap;
+          const y = startY + r * rowGap;
+
+          const isBomb = (r === 2 && (c === 2 || c === 4)) || (r === 5 && c === 3);
+          const isLaser = (stageNum >= 2 && r === 4 && (c === 1 || c === 5));
+
+          pins.push({
+            x, y,
+            radius: (isBomb || isLaser) ? 8.5 : 5,
+            isBomb,
+            isLaser,
+            hitCooldown: 0
+          });
+        }
+      }
+
+      const maxHits = upgGate.maxHits;
+      gates.push({ x: w * 0.28, y: h * 0.35, w: 52, h: 22, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#ec4899', label: 'x2' });
+      gates.push({ x: w * 0.72, y: h * 0.35, w: 52, h: 22, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#ec4899', label: 'x2' });
+      gates.push({ x: w * 0.50, y: h * 0.52, w: 66, h: 24, multiplier: 3, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#a855f7', label: 'x3!' });
+      gates.push({ x: w * 0.22, y: h * 0.70, w: 50, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#06b6d4', label: 'x2' });
+      gates.push({ x: w * 0.78, y: h * 0.70, w: 50, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#06b6d4', label: 'x2' });
+
+      const pocketCount = 5;
+      const pocketWidth = w / pocketCount;
+      const pocketConfigs = [
+        { mult: 10, balls: 0, color: '#64748b', label: 'x10' },
+        { mult: 50, balls: 1, color: '#10b981', label: 'x50 (+1球)' },
+        { mult: 300, balls: 3, color: '#f59e0b', label: 'JACKPOT (+3球)', isJackpot: true },
+        { mult: 50, balls: 1, color: '#10b981', label: 'x50 (+1球)' },
+        { mult: 10, balls: 0, color: '#64748b', label: 'x10' },
+      ];
+
+      for (let i = 0; i < pocketCount; i++) {
+        pockets.push({
+          x: i * pocketWidth,
+          y: h * 0.88,
+          w: pocketWidth,
+          h: h * 0.12,
+          ...pocketConfigs[i]
+        });
+      }
+
+      targetScoreDisplay.textContent = targetScore.toLocaleString();
+      stageBadge.textContent = `STAGE ${stageNum}`;
+      updateUI();
+    }
+
+    function updateUI() {
+      scoreDisplay.textContent = score.toLocaleString();
+      remainingBallsDisplay.textContent = remainingBalls;
+      dropBtnCount.textContent = remainingBalls;
+
+      if (remainingBalls <= 3 && remainingBalls > 0) {
+        remainingBallsDisplay.className = 'text-2xl font-black text-rose-500 font-mono heartbeat';
+      } else {
+        remainingBallsDisplay.className = 'text-2xl font-black text-cyan-300 font-mono';
+      }
+
+      upgGateBtn.disabled = score < upgGate.cost;
+      upgGateBtn.style.opacity = score < upgGate.cost ? '0.5' : '1';
+      upgBallMaxBtn.disabled = score < upgBallMax.cost;
+      upgBallMaxBtn.style.opacity = score < upgBallMax.cost ? '0.5' : '1';
+      upgMagnetBtn.disabled = score < upgMagnet.cost;
+      upgMagnetBtn.style.opacity = score < upgMagnet.cost ? '0.5' : '1';
+    }
+
+    function fireBall(targetX = null) {
+      if (isGameOver) return;
+      if (remainingBalls <= 0) return;
+
+      initAudio();
+      startOverlay.style.opacity = '0';
+
+      const w = canvas.getBoundingClientRect().width;
+      const x = targetX !== null ? Math.max(20, Math.min(w - 20, targetX)) : aimX;
+
+      remainingBalls--;
+      if (remainingBalls <= 3 && remainingBalls > 0) playWarningSound();
+
+      spawnBall(x, 20, (Math.random() - 0.5) * 1.5, 2.2, false, Math.random() > 0.85);
+      updateUI();
+    }
+
+    function spawnBall(x, y, vx = 0, vy = 2, isBomb = false, isGolden = false) {
+      if (balls.length > 1500) return;
+      const colors = ['#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#06b6d4', '#10b981', '#facc15'];
+      balls.push({
+        x, y, vx, vy,
+        radius: isBomb ? 8 : (isGolden ? 6 : 4.5),
+        color: isBomb ? '#ef4444' : (isGolden ? '#facc15' : colors[Math.floor(Math.random() * colors.length)]),
+        isBomb,
+        isGolden
+      });
+    }
+
+    function createExplosion(x, y) {
+      screenShake = Math.min(screenShake + 12, 22);
+      playPinHitSound(true, false);
+
+      const count = 12;
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.2;
+        const speed = Math.random() * 4 + 3;
+        spawnBall(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed);
+      }
+
+      for (let i = 0; i < 18; i++) {
+        particles.push({
+          x, y,
+          vx: (Math.random() - 0.5) * 7,
+          vy: (Math.random() - 0.5) * 7,
+          radius: Math.random() * 4 + 2,
+          color: Math.random() > 0.5 ? '#f59e0b' : '#ef4444',
+          life: 1
+        });
+      }
+    }
+
+    function triggerLaser(y) {
+      const w = canvas.getBoundingClientRect().width;
+      screenShake = Math.min(screenShake + 9, 18);
+      playPinHitSound(false, true);
+
+      particles.push({ type: 'laserBeam', y, w, life: 0.7 });
+
+      for (let i = 0; i < 12; i++) {
+        spawnBall((w / 12) * i, y + (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 2);
+      }
+    }
+
+    function addFloatingText(text, x, y, color = '#facc15', size = 15) {
+      floatingTexts.push({ text, x, y, vy: -1.8, alpha: 1, color, size });
+    }
+
+    function checkStageClear() {
+      if (score >= targetScore && !isGameOver) {
+        playJackpotSound();
+        remainingBalls += 10;
+        addFloatingText('STAGE CLEAR!! +10 BALLS', canvas.getBoundingClientRect().width / 2, 200, '#facc15', 22);
+        stageClearBanner.style.transform = 'scale(1)';
+
+        setTimeout(() => {
+          stageClearBanner.style.transform = 'scale(0)';
+          currentStage++;
+          targetScore = Math.floor(targetScore * 2.5);
+          initStage(currentStage);
+        }, 2200);
+      }
+    }
+
+    function checkGameOver() {
+      if (remainingBalls <= 0 && balls.length === 0 && !isGameOver) {
+        isGameOver = true;
+        autoFire = false;
+        autoBtn.textContent = 'オート: OFF';
+        playGameOverSound();
+
+        finalScoreDisplay.textContent = score.toLocaleString();
+        finalStageDisplay.textContent = `STAGE ${currentStage}`;
+        gameOverModal.style.transform = 'scale(1)';
+      }
+    }
+
+    function triggerFever() {
+      isFever = true;
+      fever = 100;
+      feverBanner.style.transform = 'scale(1.2)';
+      document.body.classList.add('fever-active');
+      playJackpotSound();
+      
+      let drops = 0;
+      const feverInterval = setInterval(() => {
+        if (isGameOver) { clearInterval(feverInterval); return; }
+        const w = canvas.getBoundingClientRect().width;
+        for (let i = 0; i < 4; i++) {
+          spawnBall(Math.random() * (w - 40) + 20, 20, (Math.random() - 0.5) * 2, Math.random() * 2, false, Math.random() > 0.7);
+        }
+        drops++;
+        if (drops > 25) {
+          clearInterval(feverInterval);
+          setTimeout(() => {
+            isFever = false;
+            feverBanner.style.transform = 'scale(0)';
+            document.body.classList.remove('fever-active');
+          }, 3500);
+        }
+      }, 90);
+    }
+
+    let lastTime = performance.now();
+
+    function update(dt) {
+      const w = canvas.getBoundingClientRect().width;
+      const h = canvas.getBoundingClientRect().height;
+
+      if (autoFire && !isGameOver && performance.now() - lastAutoFire > 250) {
+        if (remainingBalls > 0) {
+          fireBall(aimX + (Math.random() - 0.5) * 40);
+          lastAutoFire = performance.now();
+        } else {
+          autoFire = false;
+          autoBtn.textContent = 'オート: OFF';
+        }
+      }
+
+      if (screenShake > 0) {
+        screenShake *= 0.9;
+        if (screenShake < 0.5) screenShake = 0;
+      }
+
+      if (!isFever && fever > 0) {
+        fever = Math.max(0, fever - dt * 2.5);
+        feverBar.style.width = fever + '%';
+      }
+
+      for (let g of gates) {
+        if (g.hits <= 0) {
+          g.respawnTimer -= dt;
+          if (g.respawnTimer <= 0) {
+            g.hits = g.maxHits;
+          }
+        }
+      }
+
+      const gravity = 0.28;
+      const friction = 0.992;
+      const centerX = w * 0.5;
+
+      for (let i = balls.length - 1; i >= 0; i--) {
+        const b = balls[i];
+        b.vy += gravity;
+        b.vx *= friction;
+        b.vy *= friction;
+
+        if (upgMagnet.power > 0 && b.y > h * 0.55) {
+          const dx = centerX - b.x;
+          b.vx += (dx > 0 ? 1 : -1) * upgMagnet.power * 0.12;
+        }
+
+        b.x += b.vx;
+        b.y += b.vy;
+
+        if (b.x < b.radius) {
+          b.x = b.radius;
+          b.vx *= -0.7;
+        } else if (b.x > w - b.radius) {
+          b.x = w - b.radius;
+          b.vx *= -0.7;
+        }
+
+        for (let p of pins) {
+          const dx = b.x - p.x;
+          const dy = b.y - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const minDist = b.radius + p.radius;
+
+          if (dist < minDist) {
+            const nx = dx / dist;
+            const ny = dy / dist;
+            b.x = p.x + nx * minDist;
+            b.y = p.y + ny * minDist;
+            
+            const dot = b.vx * nx + b.vy * ny;
+            b.vx = (b.vx - 2 * dot * nx) * 0.75 + (Math.random() - 0.5) * 1.5;
+            b.vy = (b.vy - 2 * dot * ny) * 0.75;
+
+            if (p.isBomb && p.hitCooldown <= 0) {
+              p.hitCooldown = 60;
+              createExplosion(p.x, p.y);
+              addFloatingText('BOOM!!', p.x, p.y - 10, '#ef4444', 16);
+            } else if (p.isLaser && p.hitCooldown <= 0) {
+              p.hitCooldown = 80;
+              triggerLaser(p.y);
+              addFloatingText('LASER!!', p.x, p.y - 10, '#06b6d4', 16);
+            } else {
+              playPinHitSound(false, false);
+            }
+
+            const pts = b.isGolden ? 60 : 10;
+            score += pts;
+            if (!isFever) {
+              fever = Math.min(100, fever + (b.isGolden ? 1.5 : 0.4));
+              feverBar.style.width = fever + '%';
+              if (fever >= 100) triggerFever();
+            }
+            break;
+          }
+        }
+
+        for (let g of gates) {
+          if (g.hits > 0 &&
+              b.x > g.x - g.w/2 && b.x < g.x + g.w/2 &&
+              b.y > g.y - g.h/2 && b.y < g.y + g.h/2) {
+            
+            g.hits--;
+            playGatePassSound();
+            addFloatingText(`${g.label}`, g.x, g.y - 12, g.color, 15);
+
+            if (g.hits <= 0) {
+              g.respawnTimer = 4.0;
+              playGateBreakSound();
+              addFloatingText('BREAK!!', g.x, g.y - 25, '#f43f5e', 14);
+            }
+
+            spawnBall(
+              b.x + (Math.random() - 0.5) * 8,
+              b.y + (Math.random() - 0.5) * 8,
+              b.vx + (Math.random() - 0.5) * 3,
+              b.vy * 0.8 + 1.5,
+              false,
+              b.isGolden
+            );
+            b.y += g.h;
+            break;
+          }
+        }
+
+        if (b.y > h * 0.88) {
+          for (let pkt of pockets) {
+            if (b.x >= pkt.x && b.x < pkt.x + pkt.w) {
+              const gained = pkt.mult * (b.isGolden ? 30 : 10);
+              score += gained;
+
+              if (pkt.balls > 0) {
+                remainingBalls += pkt.balls;
+                addFloatingText(`+${pkt.balls} BALL!`, pkt.x + pkt.w/2, pkt.y - 30, '#34d399', 16);
+              }
+
+              if (pkt.isJackpot) {
+                screenShake = Math.min(screenShake + 10, 20);
+                playJackpotSound();
+                addFloatingText(`JACKPOT +${gained.toLocaleString()}!`, pkt.x + pkt.w/2, pkt.y - 15, '#f59e0b', 18);
+              } else {
+                playCoinPocketSound(pkt.balls);
+              }
+              break;
+            }
+          }
+          balls.splice(i, 1);
+          continue;
+        }
+
+        if (b.y > h + 20) {
+          balls.splice(i, 1);
+        }
+      }
+
+      for (let p of pins) {
+        if (p.hitCooldown > 0) p.hitCooldown--;
+      }
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const pt = particles[i];
+        pt.life -= 0.035;
+        if (pt.type !== 'laserBeam') {
+          pt.x += pt.vx;
+          pt.y += pt.vy;
+        }
+        if (pt.life <= 0) particles.splice(i, 1);
+      }
+
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y += ft.vy;
+        ft.alpha -= 0.025;
+        if (ft.alpha <= 0) floatingTexts.splice(i, 1);
+      }
+
+      updateUI();
+      checkStageClear();
+      checkGameOver();
+    }
+
+    function draw() {
+      const w = canvas.getBoundingClientRect().width;
+      const h = canvas.getBoundingClientRect().height;
+
+      ctx.save();
+      
+      if (screenShake > 0) {
+        ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+      }
+
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.strokeStyle = 'rgba(168, 85, 247, 0.05)';
+      ctx.lineWidth = 1;
+      const gridSize = 28;
+      for (let x = 0; x < w; x += gridSize) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      for (let y = 0; y < h; y += gridSize) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(236, 72, 153, 0.35)';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(aimX, 20);
+      ctx.lineTo(aimX, h * 0.25);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ec4899';
+      ctx.beginPath();
+      ctx.arc(aimX, 15, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      for (let pkt of pockets) {
+        ctx.fillStyle = pkt.color + (pkt.isJackpot ? '33' : '15');
+        ctx.fillRect(pkt.x, pkt.y, pkt.w, pkt.h);
+        ctx.strokeStyle = pkt.color;
+        ctx.lineWidth = pkt.isJackpot ? 2 : 1;
+        ctx.strokeRect(pkt.x, pkt.y, pkt.w, pkt.h);
+
+        ctx.fillStyle = pkt.color;
+        ctx.font = pkt.isJackpot ? 'bold 11px sans-serif' : 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(pkt.label, pkt.x + pkt.w/2, pkt.y + 20);
+      }
+
+      for (let g of gates) {
+        ctx.save();
+        if (g.hits > 0) {
+          ctx.fillStyle = g.color + '25';
+          ctx.strokeStyle = g.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(g.x - g.w/2, g.y - g.h/2, g.w, g.h, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(g.label, g.x, g.y - 2);
+
+          for (let d = 0; d < g.maxHits; d++) {
+            ctx.fillStyle = d < g.hits ? g.color : '#475569';
+            ctx.beginPath();
+            ctx.arc(g.x - (g.maxHits - 1) * 4 + d * 8, g.y + 6, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else {
+          ctx.strokeStyle = '#475569';
+          ctx.setLineDash([3, 3]);
+          ctx.strokeRect(g.x - g.w/2, g.y - g.h/2, g.w, g.h);
+          ctx.fillStyle = '#64748b';
+          ctx.font = '9px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${g.respawnTimer.toFixed(1)}s`, g.x, g.y);
+        }
+        ctx.restore();
+      }
+
+      for (let p of pins) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        if (p.isBomb) {
+          ctx.fillStyle = p.hitCooldown > 0 ? '#64748b' : '#ef4444';
+          ctx.fill();
+          ctx.strokeStyle = '#fca5a5';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        } else if (p.isLaser) {
+          ctx.fillStyle = p.hitCooldown > 0 ? '#64748b' : '#06b6d4';
+          ctx.fill();
+          ctx.strokeStyle = '#67e8f9';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = '#cbd5e1';
+          ctx.fill();
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+
+      for (let b of balls) {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fillStyle = b.color;
+        ctx.fill();
+        if (b.isGolden) {
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+
+      for (let pt of particles) {
+        if (pt.type === 'laserBeam') {
+          ctx.save();
+          ctx.strokeStyle = '#06b6d4';
+          ctx.lineWidth = 6 * pt.life;
+          ctx.shadowColor = '#06b6d4';
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.moveTo(0, pt.y);
+          ctx.lineTo(pt.w, pt.y);
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+          ctx.fillStyle = pt.color;
+          ctx.globalAlpha = Math.max(0, pt.life);
+          ctx.fill();
+          ctx.globalAlpha = 1.0;
+        }
+      }
+
+      for (let ft of floatingTexts) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.fillStyle = ft.color;
+        ctx.font = `bold ${ft.size}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = ft.color;
+        ctx.shadowBlur = 6;
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function gameLoop(now) {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('DOMContentLoaded', () => {
+      resize();
+      requestAnimationFrame(gameLoop);
+    });
+
+    function updateAim(e) {
+      const rect = canvas.getBoundingClientRect();
+      let clientX = e.clientX;
+      if (e.touches && e.touches.length > 0) clientX = e.touches[0].clientX;
+      aimX = Math.max(20, Math.min(rect.width - 20, clientX - rect.left));
+    }
+
+    canvas.addEventListener('mousemove', updateAim);
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      updateAim(e);
+    }, { passive: false });
+
+    canvas.addEventListener('click', (e) => {
+      updateAim(e);
+      fireBall(aimX);
+    });
+
+    dropBtn.addEventListener('click', () => {
+      fireBall();
+    });
+
+    autoBtn.addEventListener('click', () => {
+      initAudio();
+      autoFire = !autoFire;
+      autoBtn.textContent = `オート: ${autoFire ? 'ON 🔥' : 'OFF'}`;
+      autoBtn.className = autoFire 
+        ? 'px-3 py-2.5 bg-cyan-600 text-white font-bold rounded-xl border border-cyan-400 text-xs transition-all shadow-lg shadow-cyan-500/50'
+        : 'px-3 py-2.5 bg-slate-800 text-cyan-300 font-bold rounded-xl border border-cyan-500/30 text-xs transition-all';
+    });
+
+    retryBtn.addEventListener('click', () => {
+      initAudio();
+      isGameOver = false;
+      score = 0;
+      currentStage = 1;
+      targetScore = 8000;
+      remainingBalls = 15 + upgBallMax.bonus;
+      fever = 0;
+      balls = [];
+      gameOverModal.style.transform = 'scale(0)';
+      initStage(1);
+    });
+
+    upgGateBtn.addEventListener('click', () => {
+      if (score >= upgGate.cost) {
+        initAudio();
+        score -= upgGate.cost;
+        upgGate.level++;
+        upgGate.maxHits += 1;
+        upgGate.cost = Math.floor(upgGate.cost * 2.2);
+        upgGateLv.textContent = `Lv.${upgGate.level} (${upgGate.maxHits}回)`;
+        upgGateCost.textContent = `${upgGate.cost.toLocaleString()} pts`;
+        initStage(currentStage);
+        playGatePassSound();
+      }
+    });
+
+    upgBallMaxBtn.addEventListener('click', () => {
+      if (score >= upgBallMax.cost) {
+        initAudio();
+        score -= upgBallMax.cost;
+        upgBallMax.level++;
+        upgBallMax.bonus += 5;
+        remainingBalls += 5;
+        upgBallMax.cost = Math.floor(upgBallMax.cost * 2.4);
+        upgBallMaxLv.textContent = `Lv.${upgBallMax.level} (+${upgBallMax.bonus}球)`;
+        upgBallMaxCost.textContent = `${upgBallMax.cost.toLocaleString()} pts`;
+        playCoinPocketSound(5);
+        updateUI();
+      }
+    });
+
+    upgMagnetBtn.addEventListener('click', () => {
+      if (score >= upgMagnet.cost) {
+        initAudio();
+        score -= upgMagnet.cost;
+        upgMagnet.level++;
+        upgMagnet.power += 0.8;
+        upgMagnet.cost = Math.floor(upgMagnet.cost * 2.5);
+        upgMagnetLv.textContent = `Lv.${upgMagnet.level} (吸力 ${upgMagnet.power.toFixed(1)})`;
+        upgMagnetCost.textContent = `${upgMagnet.cost.toLocaleString()} pts`;
+        playPinHitSound(false, true);
+        updateUI();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -38,7 +38,7 @@
         <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">REMAINING BALLS</div>
         <div id="remainingBallsBox" class="flex items-center justify-end gap-1">
           <span class="text-lg">⚪</span>
-          <span id="remainingBallsDisplay" class="text-2xl font-black text-cyan-300 font-mono">10</span>
+          <span id="remainingBallsDisplay" class="text-2xl font-black text-cyan-300 font-mono">30</span>
         </div>
       </div>
     </div>
@@ -58,8 +58,8 @@
         <div class="text-4xl mb-2">🎯⚪💥</div>
         <div class="text-lg font-black text-pink-400 mb-1">狙いを定めてドロップ！</div>
         <div class="text-xs text-slate-300 leading-relaxed max-w-[280px]">
-          持ち球は<span class="text-cyan-300 font-bold">10発</span>！<br>
-          下の中央<span class="text-amber-300 font-bold">【JACKPOT (+1球)】</span>に入れると弾が回復！狙い撃ちでストックを増やせ！
+          持ち球はたっぷり<span class="text-cyan-300 font-bold">30発</span>！<br>
+          ゲート通過で<span class="text-pink-300 font-bold">×3倍、×5倍</span>に超分裂！画面を玉で埋め尽くせ！
         </div>
       </div>
 
@@ -97,7 +97,7 @@
     <!-- アクションコントロールバー -->
     <div class="p-2.5 bg-slate-950 border-t border-purple-500/30 flex items-center gap-2 z-10">
       <button id="dropBtn" class="flex-1 py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 active:scale-95 text-white font-black rounded-xl shadow-lg shadow-pink-600/30 transition-all text-xs tracking-wider flex items-center justify-center gap-1">
-        <span>🚀 発射する (残: <span id="dropBtnCount">10</span>)</span>
+        <span>🚀 発射する (残: <span id="dropBtnCount">30</span>)</span>
       </button>
 
       <button id="autoBtn" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-cyan-300 font-bold rounded-xl border border-cyan-500/30 text-xs transition-all">
@@ -349,7 +349,7 @@
     let currentStage = 1;
     let targetScore = 8000;
     let score = 0;
-    let remainingBalls = 10;
+    let remainingBalls = 30; // たっぷり30発からスタート！
     let fever = 0;
     let isFever = false;
     let autoFire = false;
@@ -357,7 +357,7 @@
     let screenShake = 0;
     let isGameOver = false;
     let isStageClearing = false;
-    const MAX_BALLS = 30; // 持ち球の上限（最大30発までストック可能）
+    const MAX_BALLS = 60; // たっぷりストック可能！
 
     let upgGate = { level: 1, maxHits: 3, cost: 800 };
     let upgBallMax = { level: 1, bonus: 0, cost: 1500 };
@@ -448,27 +448,22 @@
         }
       }
 
-      const maxHits = 4; // 連鎖分裂しやすいよう耐久度4回
-      // 【連鎖倍々ピラミッドゲート】
-      // 上段中央: 1発が2発に！
-      gates.push({ x: w * 0.50, y: h * 0.30, w: 48, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#ec4899', label: 'x2' });
-      // 中段左右: 2発が4発に！
-      gates.push({ x: w * 0.30, y: h * 0.48, w: 44, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#a855f7', label: 'x2' });
-      gates.push({ x: w * 0.70, y: h * 0.48, w: 44, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#a855f7', label: 'x2' });
-      // 下段: 4発が8発〜16発に倍々連鎖！
-      gates.push({ x: w * 0.20, y: h * 0.68, w: 40, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#06b6d4', label: 'x2' });
-      gates.push({ x: w * 0.50, y: h * 0.68, w: 40, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#06b6d4', label: 'x2' });
-      gates.push({ x: w * 0.80, y: h * 0.68, w: 40, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#06b6d4', label: 'x2' });
+      // 【ドパミン狂気ゲート配置：x3, x5で爆発増殖！】
+      gates.push({ x: w * 0.28, y: h * 0.35, w: 50, h: 22, multiplier: 3, hits: 8, maxHits: 8, respawnTimer: 0, color: '#ec4899', label: 'x3' });
+      gates.push({ x: w * 0.72, y: h * 0.35, w: 50, h: 22, multiplier: 3, hits: 8, maxHits: 8, respawnTimer: 0, color: '#ec4899', label: 'x3' });
+      gates.push({ x: w * 0.50, y: h * 0.52, w: 68, h: 24, multiplier: 5, hits: 8, maxHits: 8, respawnTimer: 0, color: '#a855f7', label: 'x5 !!' });
+      gates.push({ x: w * 0.22, y: h * 0.70, w: 48, h: 20, multiplier: 2, hits: 8, maxHits: 8, respawnTimer: 0, color: '#06b6d4', label: 'x2' });
+      gates.push({ x: w * 0.78, y: h * 0.70, w: 48, h: 20, multiplier: 2, hits: 8, maxHits: 8, respawnTimer: 0, color: '#06b6d4', label: 'x2' });
 
-      // ポケット設計：中央のJACKPOTに入ると「+1球」回復！
+      // ポケット設計：豪快スコア＆中央JACKPOTで弾補充！
       const pocketCount = 5;
       const pocketWidth = w / pocketCount;
       const pocketConfigs = [
-        { mult: 10, balls: 0, color: '#64748b', label: 'x10' },
-        { mult: 30, balls: 0, color: '#3b82f6', label: 'x30' },
-        { mult: 200, balls: 1, color: '#f59e0b', label: 'JACKPOT (+1球)', isJackpot: true },
-        { mult: 30, balls: 0, color: '#3b82f6', label: 'x30' },
-        { mult: 10, balls: 0, color: '#64748b', label: 'x10' },
+        { mult: 20, balls: 0, color: '#64748b', label: 'x20' },
+        { mult: 80, balls: 1, color: '#3b82f6', label: 'x80 (+1球)' },
+        { mult: 500, balls: 3, color: '#f59e0b', label: 'JACKPOT (+3球)', isJackpot: true },
+        { mult: 80, balls: 1, color: '#3b82f6', label: 'x80 (+1球)' },
+        { mult: 20, balls: 0, color: '#64748b', label: 'x20' },
       ];
 
       for (let i = 0; i < pocketCount; i++) {
@@ -523,7 +518,7 @@
     }
 
     function spawnBall(x, y, vx = 0, vy = 2, isBomb = false, isGolden = false, isBonus = false) {
-      if (balls.length > 1500) return;
+      if (balls.length > 2500) return; // 大量表示可能に拡張
       const colors = ['#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#06b6d4', '#10b981', '#facc15'];
       balls.push({
         x, y, vx, vy,
@@ -536,16 +531,24 @@
     }
 
     function createExplosion(x, y) {
-      screenShake = Math.min(screenShake + 12, 22);
+      screenShake = Math.min(screenShake + 16, 26);
       playPinHitSound(true, false);
-      score += 300; // 玉は出さず、ボーナススコア加算！
-      addFloatingText('+300 BOOM!!', x, y - 10, '#ef4444', 16);
+      score += 500;
+      addFloatingText('+500 BOOM!!', x, y - 10, '#ef4444', 18);
 
-      for (let i = 0; i < 16; i++) {
+      // 12発の玉が一斉に四方八方に爆散！
+      const count = 12;
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.2;
+        const speed = Math.random() * 4.5 + 3.5;
+        spawnBall(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, Math.random() > 0.7, true);
+      }
+
+      for (let i = 0; i < 20; i++) {
         particles.push({
           x, y,
-          vx: (Math.random() - 0.5) * 7,
-          vy: (Math.random() - 0.5) * 7,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8,
           radius: Math.random() * 4 + 2,
           color: Math.random() > 0.5 ? '#f59e0b' : '#ef4444',
           life: 1
@@ -555,12 +558,17 @@
 
     function triggerLaser(y) {
       const w = canvas.getBoundingClientRect().width;
-      screenShake = Math.min(screenShake + 9, 18);
+      screenShake = Math.min(screenShake + 12, 22);
       playPinHitSound(false, true);
-      score += 200; // 玉は出さず、レーザースコア加算！
-      addFloatingText('+200 LASER!!', w / 2, y - 10, '#06b6d4', 16);
+      score += 300;
+      addFloatingText('+300 LASER!!', w / 2, y - 10, '#06b6d4', 18);
 
       particles.push({ type: 'laserBeam', y, w, life: 0.7 });
+
+      // 横一列に10発の玉を一斉射出！
+      for (let i = 0; i < 10; i++) {
+        spawnBall((w / 10) * i + 15, y + (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 2, false, false, true);
+      }
     }
 
     function addFloatingText(text, x, y, color = '#facc15', size = 15) {
@@ -645,9 +653,10 @@
       const w = canvas.getBoundingClientRect().width;
       const h = canvas.getBoundingClientRect().height;
 
-      if (autoFire && !isGameOver && performance.now() - lastAutoFire > 250) {
+      // 高速マシンガン連射！
+      if (autoFire && !isGameOver && performance.now() - lastAutoFire > 110) {
         if (remainingBalls > 0) {
-          fireBall(aimX + (Math.random() - 0.5) * 40);
+          fireBall(aimX + (Math.random() - 0.5) * 50);
           lastAutoFire = performance.now();
         } else {
           autoFire = false;
@@ -1041,7 +1050,7 @@
       score = 0;
       currentStage = 1;
       targetScore = 8000;
-      remainingBalls = 10 + upgBallMax.bonus;
+      remainingBalls = 30 + upgBallMax.bonus;
       fever = 0;
       balls = [];
       gameOverModal.style.transform = 'scale(0)';

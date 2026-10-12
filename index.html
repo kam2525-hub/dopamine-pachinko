@@ -448,10 +448,17 @@
         }
       }
 
-      const maxHits = upgGate.maxHits;
-      // ゲートは左右の2箇所（x2倍率）
-      gates.push({ x: w * 0.32, y: h * 0.44, w: 42, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#ec4899', label: 'x2' });
-      gates.push({ x: w * 0.68, y: h * 0.44, w: 42, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#ec4899', label: 'x2' });
+      const maxHits = 4; // 連鎖分裂しやすいよう耐久度4回
+      // 【連鎖倍々ピラミッドゲート】
+      // 上段中央: 1発が2発に！
+      gates.push({ x: w * 0.50, y: h * 0.30, w: 48, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#ec4899', label: 'x2' });
+      // 中段左右: 2発が4発に！
+      gates.push({ x: w * 0.30, y: h * 0.48, w: 44, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#a855f7', label: 'x2' });
+      gates.push({ x: w * 0.70, y: h * 0.48, w: 44, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#a855f7', label: 'x2' });
+      // 下段: 4発が8発〜16発に倍々連鎖！
+      gates.push({ x: w * 0.20, y: h * 0.68, w: 40, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#06b6d4', label: 'x2' });
+      gates.push({ x: w * 0.50, y: h * 0.68, w: 40, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#06b6d4', label: 'x2' });
+      gates.push({ x: w * 0.80, y: h * 0.68, w: 40, h: 20, multiplier: 2, hits: maxHits, maxHits: maxHits, respawnTimer: 0, color: '#06b6d4', label: 'x2' });
 
       // ポケット設計：中央のJACKPOTに入ると「+1球」回復！
       const pocketCount = 5;
@@ -746,7 +753,7 @@
               b.vy * 0.8 + 1.5,
               false,
               b.isGolden,
-              b.isBonus
+              true // 分裂した球はボーナス扱い（手持ち球は増やさない）
             );
             b.y += g.h;
             break;

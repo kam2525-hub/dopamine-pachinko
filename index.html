@@ -356,6 +356,8 @@
     let lastAutoFire = 0;
     let screenShake = 0;
     let isGameOver = false;
+    let isStageClearing = false;
+    const MAX_BALLS = 15; // 持ち球の絶対上限（15発以上は持てない）
 
     let upgGate = { level: 1, maxHits: 3, cost: 800 };
     let upgBallMax = { level: 1, bonus: 0, cost: 1500 };
@@ -558,9 +560,11 @@
     }
 
     function checkStageClear() {
-      if (score >= targetScore && !isGameOver) {
+      // 毎フレーム多重実行されるのを防ぐため、isStageClearingで1回だけ実行にロック！
+      if (score >= targetScore && !isGameOver && !isStageClearing) {
+        isStageClearing = true;
         playJackpotSound();
-        remainingBalls += 3; // +10球から+3球へ適正化
+        remainingBalls = Math.min(remainingBalls + 3, MAX_BALLS); // 最大でもMAX_BALLS(15発)まで！
         addFloatingText('STAGE CLEAR!! +3 BALLS', canvas.getBoundingClientRect().width / 2, 200, '#facc15', 22);
         stageClearBanner.style.transform = 'scale(1)';
 
@@ -569,6 +573,7 @@
           currentStage++;
           targetScore = Math.floor(targetScore * 2.5);
           initStage(currentStage);
+          isStageClearing = false; // 次のステージへ切り替わった後にロック解除
         }, 2200);
       }
     }

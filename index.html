@@ -607,17 +607,26 @@
       feverBanner.style.transform = 'scale(1.2)';
       document.body.classList.add('fever-active');
       playJackpotSound();
+      screenShake = Math.min(screenShake + 15, 25);
       
       let drops = 0;
+      // 70ms間隔で4発ずつ、計約110発の豪快土砂降りシャワー！
       const feverInterval = setInterval(() => {
         if (isGameOver) { clearInterval(feverInterval); return; }
         const w = canvas.getBoundingClientRect().width;
-        for (let i = 0; i < 3; i++) {
-          // フィーバー中はボーナス玉（isBonus: true）として生成（持ち球を増やさない）
-          spawnBall(Math.random() * (w - 40) + 20, 20, (Math.random() - 0.5) * 2, Math.random() * 2, false, false, true);
+        for (let i = 0; i < 4; i++) {
+          spawnBall(
+            Math.random() * (w - 40) + 20,
+            15,
+            (Math.random() - 0.5) * 3,
+            Math.random() * 2.5 + 1,
+            false,
+            Math.random() > 0.6, // 金色の玉も多めに降る！
+            true // 手持ち球は増やさないボーナス仕様
+          );
         }
         drops++;
-        if (drops >= 18) {
+        if (drops >= 28) {
           clearInterval(feverInterval);
           setTimeout(() => {
             isFever = false;
@@ -625,9 +634,9 @@
             feverBar.style.width = '0%';
             feverBanner.style.transform = 'scale(0)';
             document.body.classList.remove('fever-active');
-          }, 3500);
+          }, 4000);
         }
-      }, 100);
+      }, 70);
     }
 
     let lastTime = performance.now();
@@ -723,7 +732,7 @@
             score += pts;
             // ボーナス玉（フィーバー玉）ではフィーバーゲージを溜めない
             if (!isFever && !b.isBonus) {
-              fever = Math.min(100, fever + (b.isGolden ? 1.2 : 0.35));
+              fever = Math.min(100, fever + (b.isGolden ? 3.0 : 0.8));
               feverBar.style.width = fever + '%';
               if (fever >= 100) triggerFever();
             }
@@ -739,6 +748,13 @@
             g.hits--;
             playGatePassSound();
             addFloatingText(`${g.label}`, g.x, g.y - 12, g.color, 15);
+
+            // ゲート通過でフィーバーゲージがグッと溜まる！
+            if (!isFever && !b.isBonus) {
+              fever = Math.min(100, fever + 3.5);
+              feverBar.style.width = fever + '%';
+              if (fever >= 100) triggerFever();
+            }
 
             if (g.hits <= 0) {
               g.respawnTimer = 4.0;

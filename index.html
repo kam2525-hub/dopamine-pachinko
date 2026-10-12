@@ -514,7 +514,7 @@
       updateUI();
     }
 
-    function spawnBall(x, y, vx = 0, vy = 2, isBomb = false, isGolden = false) {
+    function spawnBall(x, y, vx = 0, vy = 2, isBomb = false, isGolden = false, isBonus = false) {
       if (balls.length > 1500) return;
       const colors = ['#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#06b6d4', '#10b981', '#facc15'];
       balls.push({
@@ -522,7 +522,8 @@
         radius: isBomb ? 8 : (isGolden ? 6 : 4.5),
         color: isBomb ? '#ef4444' : (isGolden ? '#facc15' : colors[Math.floor(Math.random() * colors.length)]),
         isBomb,
-        isGolden
+        isGolden,
+        isBonus
       });
     }
 
@@ -595,8 +596,10 @@
     }
 
     function triggerFever() {
+      if (isFever) return;
       isFever = true;
-      fever = 100;
+      fever = 0;
+      feverBar.style.width = '0%';
       feverBanner.style.transform = 'scale(1.2)';
       document.body.classList.add('fever-active');
       playJackpotSound();
@@ -605,19 +608,22 @@
       const feverInterval = setInterval(() => {
         if (isGameOver) { clearInterval(feverInterval); return; }
         const w = canvas.getBoundingClientRect().width;
-        for (let i = 0; i < 4; i++) {
-          spawnBall(Math.random() * (w - 40) + 20, 20, (Math.random() - 0.5) * 2, Math.random() * 2, false, Math.random() > 0.7);
+        for (let i = 0; i < 3; i++) {
+          // フィーバー中はボーナス玉（isBonus: true）として生成（持ち球を増やさない）
+          spawnBall(Math.random() * (w - 40) + 20, 20, (Math.random() - 0.5) * 2, Math.random() * 2, false, false, true);
         }
         drops++;
-        if (drops > 25) {
+        if (drops >= 18) {
           clearInterval(feverInterval);
           setTimeout(() => {
             isFever = false;
+            fever = 0;
+            feverBar.style.width = '0%';
             feverBanner.style.transform = 'scale(0)';
             document.body.classList.remove('fever-active');
           }, 3500);
         }
-      }, 90);
+      }, 100);
     }
 
     let lastTime = performance.now();
@@ -711,8 +717,9 @@
 
             const pts = b.isGolden ? 60 : 10;
             score += pts;
-            if (!isFever) {
-              fever = Math.min(100, fever + (b.isGolden ? 1.5 : 0.4));
+            // ボーナス玉（フィーバー玉）ではフィーバーゲージを溜めない
+            if (!isFever && !b.isBonus) {
+              fever = Math.min(100, fever + (b.isGolden ? 1.2 : 0.35));
               feverBar.style.width = fever + '%';
               if (fever >= 100) triggerFever();
             }
@@ -741,7 +748,8 @@
               b.vx + (Math.random() - 0.5) * 3,
               b.vy * 0.8 + 1.5,
               false,
-              b.isGolden
+              b.isGolden,
+              b.isBonus
             );
             b.y += g.h;
             break;
@@ -754,7 +762,8 @@
               const gained = pkt.mult * (b.isGolden ? 30 : 10);
               score += gained;
 
-              if (pkt.balls > 0) {
+              // ボーナス玉（フィーバー中の玉）は持ち球を増やさない（純粋なスコア稼ぎ）
+              if (pkt.balls > 0 && !b.isBonus) {
                 remainingBalls += pkt.balls;
                 addFloatingText(`+${pkt.balls} BALL!`, pkt.x + pkt.w/2, pkt.y - 30, '#34d399', 16);
               }
